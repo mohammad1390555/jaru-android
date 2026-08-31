@@ -1,0 +1,59 @@
+name: Release APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set version
+        id: ver
+        run: |
+          echo "code=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          echo "name=1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace \
+            -PversionCode=${{ steps.ver.outputs.code }} \
+            -PversionName=${{ steps.ver.outputs.name }}
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p dist
+          APK=$(ls app/build/outputs/apk/release/*-release.apk | head -n1)
+          cp "$APK" "dist/jaru-${{ steps.ver.outputs.name }}.apk"
+          ls -lh dist
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.name }}
+          name: جارو v${{ steps.ver.outputs.name }}
+          generate_release_notes: true
+          files: dist/jaru-${{ steps.ver.outputs.name }}.apk
+          body: |
+            پاک‌کن VPN اندروید — نصب مستقیم، بدون گوگل‌پلی.
+
+            1. APK را دانلود کن
+            2. نصب از منابع ناشناس را روشن کن
+            3. نصب
+
+            نسخه: `${{ steps.ver.outputs.name }}` · build `${{ steps.ver.outputs.code }}`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
