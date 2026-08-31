@@ -53,16 +53,16 @@ class VpnScanner(private val ctx: Context) {
 
         // Layer 3 — VpnService
         queryVpnServices().forEach { pkg ->
-            buildHit(pkg, reason = "سرویس VpnService", confidence = Confidence.HIGH)?.let(::emit)
+            buildHit(pkg, reason = ctx.getString(R.string.reason_vpn_service), confidence = Confidence.HIGH)?.let(::emit)
         }
 
-        // Layer 4 — BIND_VPN_SERVICE on any exported/non-exported service
+        // Layer 4 — BIND_VPN_SERVICE
         installed(PackageManager.GET_SERVICES).forEach { pi ->
             val pkg = pi.packageName
             if (pkg == own || pkg in VpnCatalog.skipAlways) return@forEach
             val hitVpn = pi.services?.any { it.permission == "android.permission.BIND_VPN_SERVICE" } == true
             if (hitVpn) {
-                buildHit(pkg, reason = "مجوز BIND_VPN_SERVICE", confidence = Confidence.HIGH)?.let(::emit)
+                buildHit(pkg, reason = ctx.getString(R.string.reason_bind), confidence = Confidence.HIGH)?.let(::emit)
             }
         }
 
@@ -70,11 +70,15 @@ class VpnScanner(private val ctx: Context) {
         VpnCatalog.packages.keys.forEach { pkg ->
             if (isInstalled(pkg)) {
                 val name = VpnCatalog.packages[pkg] ?: pkg
-                buildHit(pkg, reason = "کاتالوگ: $name", confidence = Confidence.MEDIUM)?.let(::emit)
+                buildHit(
+                    pkg,
+                    reason = ctx.getString(R.string.reason_catalog, name),
+                    confidence = Confidence.MEDIUM
+                )?.let(::emit)
             }
         }
 
-        // Layer 6 — heuristic over every installed package
+        // Layer 6 — heuristic
         installed(0).forEach { pi ->
             val pkg = pi.packageName
             if (pkg == own || pkg in VpnCatalog.skipAlways) return@forEach
@@ -83,33 +87,30 @@ class VpnScanner(private val ctx: Context) {
                 pi.applicationInfo?.loadLabel(pm)?.toString().orEmpty()
             } catch (_: Exception) { "" }
             val key = VpnCatalog.looksLikeVpn(pkg, label) ?: return@forEach
-            buildHit(pkg, reason = "نام مشکوک: $key", confidence = Confidence.LOW)?.let(::emit)
+            buildHit(
+                pkg,
+                reason = ctx.getString(R.string.reason_name, key),
+                confidence = Confidence.LOW
+            )?.let(::emit)
         }
 
-        // Layer 1+2 annotations
+        // Layer 1+2 — annotate the actual always-on owner only
         report.alwaysOnPkg?.let { pkg ->
             if (pkg.isNotBlank()) {
                 val existing = map[pkg]
                 if (existing != null) {
                     existing.alwaysOn = true
                     existing.active = true
-                    if ("Always-on" !in existing.reasons) existing.reasons += "Always-on VPN"
+                    val tag = ctx.getString(R.string.reason_always_on_short)
+                    if (tag !in existing.reasons) existing.reasons += tag
                     existing.bump(Confidence.HIGH)
                 } else {
-                    buildHit(pkg, reason = "Always-on VPN سیستم", confidence = Confidence.HIGH)?.also {
+                    buildHit(pkg, reason = ctx.getString(R.string.reason_always_on), confidence = Confidence.HIGH)?.also {
                         it.alwaysOn = true
                         it.active = true
                         emit(it)
                     }
                 }
-            }
-        }
-
-        if (report.vpnAlive) {
-            // Mark high-confidence clients as likely owner of the live tunnel.
-            map.values.filter { it.confidence == Confidence.HIGH && !it.system }.forEach {
-                it.active = true
-                if ("تونل فعال روی دستگاه" !in it.reasons) it.reasons += "تونل فعال روی دستگاه"
             }
         }
 

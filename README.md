@@ -1,32 +1,34 @@
-# جارو
+# Once / یک زمانی
 
-اسکنر و پاک‌کن VPN برای اندروید.
+VPN scanner and cleaner for Android.
 
-لایه‌لایه می‌گردد، موارد را یکی‌یکی روی صفحه می‌آورد، کنارشان تیک می‌زند. هر کدام را که لازم داری تیکش را بردار. بقیه دانه‌دانه با دیالوگ سیستم حذف می‌شوند.
+First open is in English. Launcher name follows the phone language: **Once** on English, **یک زمانی** otherwise.
 
-APK از ریلیز همین ریپو. هر پوش روی `main` نسخهٔ جدید می‌سازد.
+It scans layer by layer, shows each app, checks it. Uncheck what you still need. The rest are removed one by one through the system uninstall screen.
 
-## نصب
+APK is published from Releases. Every push to `main` cuts a new version.
 
-1. [Releases](https://github.com/mohammad1390555/jaru-android/releases) → آخرین APK
-2. اجازهٔ نصب از منبع ناشناس
-3. نصب
+## Install
 
-اندروید ۸ به بالا.
+1. [Releases](https://github.com/mohammad1390555/jaru-android/releases) → latest APK
+2. Allow unknown sources
+3. Install
 
-## اسکن
+Android 8+.
 
-1. تونل زنده (`tun` / `TRANSPORT_VPN`) و Always-on
-2. برنامه‌هایی که `VpnService` دارند
-3. سرویس با مجوز `BIND_VPN_SERVICE`
-4. کاتالوگ کلاینت‌های معروف (v2rayNG، Hiddify، Clash، WireGuard، WARP، …)
-5. نام/برچسب مشکوک — اطمینان پایین، پیش‌فرض بدون تیک
+## Scan
 
-برنامه‌های سیستم گزارش می‌شوند ولی تیک نمی‌خورند و حذف نمی‌شوند.
+1. Live tunnel (`tun` / `TRANSPORT_VPN`) and Always-on
+2. Apps that expose `VpnService`
+3. Services with `BIND_VPN_SERVICE`
+4. Known clients (v2rayNG, Hiddify, Clash, WireGuard, WARP, …)
+5. Name/label heuristic — low confidence, unchecked by default
 
-حذف بی‌صدا در اندروید ممکن نیست؛ برای هر مورد صفحهٔ سیستم می‌آید تا تأیید کنی. پروفایل Legacy داخل Settings را با دکمهٔ «تنظیمات» باز کن.
+System apps are listed, never selected. Android does not allow silent uninstall.
 
-## ساخت محلی
+In-app language: first run English, toggle to فارسی.
+
+## Build
 
 JDK 17 + Android SDK 35.
 

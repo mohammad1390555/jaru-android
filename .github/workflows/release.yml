@@ -44,7 +44,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.name }}
-          name: جارو v${{ steps.ver.outputs.name }}
+          name: Once / یک زمانی v${{ steps.ver.outputs.name }}
           generate_release_notes: true
           files: dist/jaru-${{ steps.ver.outputs.name }}.apk
           body: |

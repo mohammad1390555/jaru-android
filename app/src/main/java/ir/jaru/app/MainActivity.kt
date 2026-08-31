@@ -1,5 +1,6 @@
 package ir.jaru.app
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.net.Uri
@@ -18,6 +19,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
@@ -37,12 +39,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnScan: MaterialButton
     private lateinit var btnPurge: MaterialButton
     private lateinit var btnVpnSettings: MaterialButton
+    private lateinit var btnAll: MaterialButton
+    private lateinit var btnNone: MaterialButton
+    private lateinit var btnLang: MaterialButton
     private lateinit var overlay: MaterialCardView
     private lateinit var overlayIcon: ImageView
     private lateinit var overlayTitle: TextView
     private lateinit var overlayMeta: TextView
     private lateinit var overlayProgress: ProgressBar
     private lateinit var overlayCount: TextView
+    private lateinit var intro: View
 
     private val io = Executors.newSingleThreadExecutor()
     private val ui = Handler(Looper.getMainLooper())
@@ -60,6 +66,10 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { onUninstallReturned() }
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(Lang.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -74,12 +84,16 @@ class MainActivity : AppCompatActivity() {
         btnScan = findViewById(R.id.btnScan)
         btnPurge = findViewById(R.id.btnPurge)
         btnVpnSettings = findViewById(R.id.btnVpnSettings)
+        btnAll = findViewById(R.id.btnAll)
+        btnNone = findViewById(R.id.btnNone)
+        btnLang = findViewById(R.id.btnLang)
         overlay = findViewById(R.id.overlay)
         overlayIcon = findViewById(R.id.overlayIcon)
         overlayTitle = findViewById(R.id.overlayTitle)
         overlayMeta = findViewById(R.id.overlayMeta)
         overlayProgress = findViewById(R.id.overlayProgress)
         overlayCount = findViewById(R.id.overlayCount)
+        intro = findViewById(R.id.intro)
 
         setSupportActionBar(toolbar)
         list.layoutManager = LinearLayoutManager(this)
@@ -88,14 +102,27 @@ class MainActivity : AppCompatActivity() {
         btnScan.setOnClickListener { startScan() }
         btnPurge.setOnClickListener { confirmPurge() }
         btnVpnSettings.setOnClickListener {
-            startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
+        }
+        btnAll.setOnClickListener { setAll(true) }
+        btnNone.setOnClickListener { setAll(false) }
+        btnLang.setOnClickListener {
+            Lang.toggle(this)
+            recreate()
+        }
+        findViewById<MaterialButton>(R.id.btnIntro).setOnClickListener {
+            Lang.markIntro(this)
+            intro.visibility = View.GONE
+            startScan()
         }
 
-        showEmpty(
-            "اسکن VPN",
-            "برنامه‌های تونل، پروفایل Always-on و اینترفیس tun را پیدا می‌کند.\nتیک را از هر کدام که لازم داری بردار، بقیه دانه‌دانه حذف می‌شوند."
-        )
-        startScan()
+        showEmpty(getString(R.string.empty_scan_title), getString(R.string.empty_scan_hint))
+
+        if (!Lang.seenIntro(this)) {
+            intro.visibility = View.VISIBLE
+        } else {
+            startScan()
+        }
     }
 
     override fun onResume() {
@@ -105,6 +132,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setAll(on: Boolean) {
+        if (purging) return
+        report.hits.forEach {
+            if (!it.system && it.state != RowState.REMOVED) it.checked = on
+        }
+        adapter.notifyDataSetChanged()
+        refreshBanner()
+    }
+
     private fun startScan() {
         if (purging) return
         report = ScanReport(mutableListOf())
@@ -112,8 +148,8 @@ class MainActivity : AppCompatActivity() {
         overlay.visibility = View.GONE
         btnPurge.isEnabled = false
         btnScan.isEnabled = false
-        banner.text = "در حال اسکن لایه‌ای…"
-        showEmpty("داره می‌گرده", "سرویس VPN، کاتالوگ، نام بسته‌ها، tun فعال.")
+        banner.text = getString(R.string.scanning)
+        showEmpty(getString(R.string.empty_working_title), getString(R.string.empty_working_hint))
         io.execute {
             val r = scanner.scan { hit ->
                 ui.post {
@@ -121,9 +157,9 @@ class MainActivity : AppCompatActivity() {
                     hideEmpty()
                     adapter.notifyItemInserted(report.hits.lastIndex)
                     list.scrollToPosition(report.hits.lastIndex)
-                    banner.text = "پیدا شد: ${hit.label}"
+                    banner.text = getString(R.string.found, hit.label)
                 }
-                try { Thread.sleep(90) } catch (_: InterruptedException) { }
+                try { Thread.sleep(70) } catch (_: InterruptedException) { }
             }
             ui.post {
                 report = r
@@ -131,12 +167,12 @@ class MainActivity : AppCompatActivity() {
                 btnScan.isEnabled = true
                 refreshBanner()
                 if (report.hits.isEmpty()) {
+                    val extra = if (report.vpnAlive && report.tunIfaces.isNotEmpty())
+                        getString(R.string.ifaces, report.tunIfaces.joinToString()) + "\n" else ""
                     showEmpty(
-                        if (report.vpnAlive) "تونل هست، برنامه پیدا نشد" else "VPN نصب‌شده‌ای نیست",
-                        buildString {
-                            if (report.vpnAlive) append("اینترفیس: ${report.tunIfaces.joinToString()}\n")
-                            append("پروفایل‌های Legacy داخل تنظیمات سیستم را از دکمه پایین باز کن.")
-                        }
+                        if (report.vpnAlive) getString(R.string.empty_tunnel_title)
+                        else getString(R.string.empty_none_title),
+                        extra + getString(R.string.empty_none_hint)
                     )
                 } else {
                     hideEmpty()
@@ -148,10 +184,14 @@ class MainActivity : AppCompatActivity() {
     private fun refreshBanner() {
         val n = report.hits.size
         val sel = report.hits.count { it.checked && !it.system }
-        val bits = mutableListOf<String>()
-        bits += "$n مورد"
-        bits += "$sel انتخاب‌شده"
-        if (report.vpnAlive) bits += "تونل فعال" + if (report.tunIfaces.isNotEmpty()) " (${report.tunIfaces.joinToString()})" else ""
+        val bits = mutableListOf(
+            getString(R.string.n_items, n),
+            getString(R.string.n_selected, sel)
+        )
+        if (report.vpnAlive) {
+            val tun = if (report.tunIfaces.isNotEmpty()) " (${report.tunIfaces.joinToString()})" else ""
+            bits += getString(R.string.tunnel_up) + tun
+        }
         if (report.alwaysOnPkg != null) bits += "Always-on"
         if (report.lockdown) bits += "Lockdown"
         banner.text = bits.joinToString("  ·  ")
@@ -161,23 +201,21 @@ class MainActivity : AppCompatActivity() {
     private fun confirmPurge() {
         val selected = report.hits.filter { it.checked && !it.system && it.state != RowState.REMOVED }
         if (selected.isEmpty()) {
-            toast("چیزی تیک نخورده")
+            toast(getString(R.string.nothing_checked))
             return
         }
         MaterialAlertDialogBuilder(this)
-            .setTitle("حذف ${selected.size} برنامه")
-            .setMessage(
-                "اندروید اجازهٔ حذف بی‌صدا نمی‌دهد. برای هر مورد صفحهٔ سیستم می‌آید؛ تأیید کن تا برود.\n\n" +
-                    "تیک هر کدام را که لازم داری از لیست بردار، بعد ادامه بده."
-            )
-            .setPositiveButton("شروع حذف") { _, _ -> beginPurge(selected) }
-            .setNegativeButton("انصراف", null)
+            .setTitle(getString(R.string.purge_title, selected.size))
+            .setMessage(getString(R.string.purge_msg))
+            .setPositiveButton(R.string.purge_start) { _, _ -> beginPurge(selected) }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
     private fun beginPurge(selected: List<Hit>) {
         purging = true
         waitingUninstall = false
+        waitingPkg = null
         queue = selected.toMutableList()
         qIndex = -1
         btnPurge.isEnabled = false
@@ -199,7 +237,7 @@ class MainActivity : AppCompatActivity() {
         adapter.notifyDataSetChanged()
         overlayTitle.text = hit.label
         overlayMeta.text = hit.packageName
-        overlayCount.text = "${qIndex + 1} از ${queue.size}"
+        overlayCount.text = getString(R.string.of, qIndex + 1, queue.size)
         overlayProgress.progress = qIndex
         overlayIcon.setImageDrawable(iconOf(hit.packageName))
         if (!scanner.stillInstalled(hit.packageName)) {
@@ -249,10 +287,10 @@ class MainActivity : AppCompatActivity() {
         val fail = queue.count { it.state == RowState.FAILED }
         refreshBanner()
         MaterialAlertDialogBuilder(this)
-            .setTitle("تمام")
-            .setMessage("حذف شد: $gone\nرد شد: $skip\nخطا: $fail\n\nاگر تونل هنوز بالاست، از تنظیمات VPN سیستم قطعش کن.")
-            .setPositiveButton("اسکن دوباره") { _, _ -> startScan() }
-            .setNegativeButton("باشه", null)
+            .setTitle(R.string.done)
+            .setMessage(getString(R.string.done_msg, gone, skip, fail))
+            .setPositiveButton(R.string.scan_again) { _, _ -> startScan() }
+            .setNegativeButton(R.string.ok, null)
             .show()
         btnPurge.isEnabled = report.hits.any { it.checked && !it.system }
     }
@@ -260,7 +298,7 @@ class MainActivity : AppCompatActivity() {
     private fun iconOf(pkg: String): Drawable? = try {
         packageManager.getApplicationIcon(pkg)
     } catch (_: Exception) {
-        getDrawable(R.drawable.ic_shield)
+        ContextCompat.getDrawable(this, R.drawable.ic_shield)
     }
 
     private fun showEmpty(title: String, hint: String) {
@@ -293,12 +331,12 @@ class MainActivity : AppCompatActivity() {
             h.why.text = item.reasons.joinToString("  ·  ")
             h.icon.setImageDrawable(iconOf(item.packageName))
             h.badge.text = when {
-                item.system -> "سیستم"
-                item.alwaysOn -> "Always-on"
-                item.active -> "فعال"
-                item.confidence == Confidence.HIGH -> "VPN"
-                item.confidence == Confidence.MEDIUM -> "کاتالوگ"
-                else -> "مشکوک"
+                item.system -> getString(R.string.badge_system)
+                item.alwaysOn -> getString(R.string.badge_always_on)
+                item.active -> getString(R.string.badge_active)
+                item.confidence == Confidence.HIGH -> getString(R.string.badge_vpn)
+                item.confidence == Confidence.MEDIUM -> getString(R.string.badge_catalog)
+                else -> getString(R.string.badge_suspect)
             }
             h.badge.setBackgroundColor(
                 when {
@@ -311,11 +349,11 @@ class MainActivity : AppCompatActivity() {
             )
             h.status.visibility = if (item.state == RowState.IDLE) View.GONE else View.VISIBLE
             h.status.text = when (item.state) {
-                RowState.WAITING -> "…"
-                RowState.REMOVED -> "حذف شد"
-                RowState.SKIPPED -> "رد شد"
-                RowState.FAILED -> "خطا"
-                RowState.BLOCKED -> "قفل"
+                RowState.WAITING -> getString(R.string.st_waiting)
+                RowState.REMOVED -> getString(R.string.st_removed)
+                RowState.SKIPPED -> getString(R.string.st_skipped)
+                RowState.FAILED -> getString(R.string.st_failed)
+                RowState.BLOCKED -> getString(R.string.st_blocked)
                 RowState.IDLE -> ""
             }
             val canCheck = !item.system && item.state != RowState.REMOVED
