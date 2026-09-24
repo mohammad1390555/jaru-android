@@ -9,12 +9,12 @@ data class Hit(
     val label: String,
     val version: String,
     val reasons: MutableList<String>,
-    var confidence: Confidence,
+    val confidence: Confidence,
     val system: Boolean,
-    var active: Boolean,
-    var alwaysOn: Boolean,
-    var checked: Boolean,
-    var state: RowState = RowState.IDLE
+    val active: Boolean,
+    val alwaysOn: Boolean,
+    val checked: Boolean,
+    val state: RowState = RowState.IDLE
 ) {
     fun bump(c: Confidence) {
         confidence = max(confidence, c)
@@ -28,8 +28,8 @@ data class Hit(
 
 data class ScanReport(
     val hits: MutableList<Hit>,
-    var vpnAlive: Boolean = false,
-    var tunIfaces: List<String> = emptyList(),
-    var alwaysOnPkg: String? = null,
-    var lockdown: Boolean = false
+    val vpnAlive: Boolean = false,
+    val tunIfaces: List<String> = emptyList(),
+    val alwaysOnPkg: String? = null,
+    val lockdown: Boolean = false
 )

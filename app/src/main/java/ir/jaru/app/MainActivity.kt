@@ -30,37 +30,37 @@ import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var toolbar: MaterialToolbar
-    private lateinit var banner: TextView
-    private lateinit var list: RecyclerView
-    private lateinit var empty: LinearLayout
-    private lateinit var emptyTitle: TextView
-    private lateinit var emptyHint: TextView
-    private lateinit var btnScan: MaterialButton
-    private lateinit var btnPurge: MaterialButton
-    private lateinit var btnVpnSettings: MaterialButton
-    private lateinit var btnAll: MaterialButton
-    private lateinit var btnNone: MaterialButton
-    private lateinit var btnLang: MaterialButton
-    private lateinit var overlay: MaterialCardView
-    private lateinit var overlayIcon: ImageView
-    private lateinit var overlayTitle: TextView
-    private lateinit var overlayMeta: TextView
-    private lateinit var overlayProgress: ProgressBar
-    private lateinit var overlayCount: TextView
-    private lateinit var intro: View
+    private lateinit val toolbar: MaterialToolbar
+    private lateinit val banner: TextView
+    private lateinit val list: RecyclerView
+    private lateinit val empty: LinearLayout
+    private lateinit val emptyTitle: TextView
+    private lateinit val emptyHint: TextView
+    private lateinit val btnScan: MaterialButton
+    private lateinit val btnPurge: MaterialButton
+    private lateinit val btnVpnSettings: MaterialButton
+    private lateinit val btnAll: MaterialButton
+    private lateinit val btnNone: MaterialButton
+    private lateinit val btnLang: MaterialButton
+    private lateinit val overlay: MaterialCardView
+    private lateinit val overlayIcon: ImageView
+    private lateinit val overlayTitle: TextView
+    private lateinit val overlayMeta: TextView
+    private lateinit val overlayProgress: ProgressBar
+    private lateinit val overlayCount: TextView
+    private lateinit val intro: View
 
     private val io = Executors.newSingleThreadExecutor()
     private val ui = Handler(Looper.getMainLooper())
-    private lateinit var scanner: VpnScanner
-    private var report = ScanReport(mutableListOf())
+    private lateinit val scanner: VpnScanner
+    private val report = ScanReport(mutableListOf())
     private val adapter = HitAdapter()
 
-    private var queue = mutableListOf<Hit>()
-    private var qIndex = -1
-    private var waitingUninstall = false
-    private var waitingPkg: String? = null
-    private var purging = false
+    private val queue = mutableListOf<Hit>()
+    private val qIndex = -1
+    private val waitingUninstall = false
+    private val waitingPkg: String? = null
+    private val purging = false
 
     private val uninstallLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -348,7 +348,7 @@ class MainActivity : AppCompatActivity() {
                 }
             )
             h.status.visibility = if (item.state == RowState.IDLE) View.GONE else View.VISIBLE
-            h.status.text = when (item.state) {
+            h.status.text = if (item.state) {
                 RowState.WAITING -> getString(R.string.st_waiting)
                 RowState.REMOVED -> getString(R.string.st_removed)
                 RowState.SKIPPED -> getString(R.string.st_skipped)
